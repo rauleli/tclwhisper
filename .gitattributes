@@ -1,0 +1,2 @@
+configure -whitespace
+tclconfig/tcl.m4 -whitespace

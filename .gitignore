@@ -1,13 +1,47 @@
+# Compiled artifacts
 *.o
+*.obj
 *.so
-valgrind-*.log
+*.so.*
+*.a
+*.la
+*.lo
+.libs/
+
+# Autotools output generated during configuration
 Makefile
 config.log
 config.status
-configure
-aclocal.m4
+config.cache
+configure~
 autom4te.cache/
 pkgIndex.tcl
-tclconfig/config.guess
-tclconfig/config.sub
-git.sh
+
+# Local build, distribution, and installation trees
+build/
+dist/
+install/
+prefix/
+
+# Logs, temporary files, and editor state
+*.log
+*.tmp
+*.bak
+*.backup
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+.claude/
+.DS_Store
+Thumbs.db
+.env
+
+# Models and audio are external test inputs
+*.bin
+*.gguf
+*.safetensors
+*.wav
+*.mp3
+*.f32

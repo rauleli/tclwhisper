@@ -3,6 +3,29 @@
 This file records changes made to `tclwhisper` in chronological order.
 Dates and times use the local time zone stated in each entry.
 
+## 2026-09-28 00:55:08 MDT (-0600) — Repository portability / publishing preparation
+
+### Added
+
+- Added public README, MIT license, Linux build documentation, contribution
+  and security guidance, and a reproducible benchmark protocol.
+- Added portable benchmark, system-information, and optional integration smoke
+  test scripts that take model and PCM paths from the caller.
+- Included the generated Autoconf/TEA distribution files required to configure
+  a clean source checkout without machine-local build files.
+
+### Changed
+
+- Made the whisper.cpp helper accept arbitrary source, build, and installation
+  paths plus an explicit CPU or CUDA backend.
+- Expanded repository ignores for generated builds, local installation trees,
+  models, audio, logs, editor state, and temporary files.
+
+### Scope
+
+- No Tcl API, transcription behavior, model lifecycle, PCM contract, language
+  handling, or whisper.cpp defaults changed.
+
 ## 2026-09-27 23:58:02 MDT (-0600) — Slice 3
 
 ### Added
