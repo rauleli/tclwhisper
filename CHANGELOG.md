@@ -3,6 +3,31 @@
 This file records changes made to `tclwhisper` in chronological order.
 Dates and times use the local time zone stated in each entry.
 
+## 2026-09-27 21:35:02 MDT (-0600) — Slice 2
+
+### Added
+
+- Added the blocking `whisper::transcribe handle pcm` operation.
+- Established the initial input contract as mono, 16 kHz, little-endian
+  float32 PCM with nominally normalized samples.
+- Added an aligned, call-local sample buffer with explicit little-endian
+  decoding instead of casting Tcl bytearray storage to `float *`.
+
+### Behavior
+
+- Empty PCM returns an empty Tcl string without calling `whisper_full()`.
+- Segment text is concatenated exactly in upstream order, without trimming or
+  binding-added separators.
+- Recognition starts from upstream greedy defaults. Only presentation-only
+  progress and timestamp printing are disabled; recognition parameters remain
+  unchanged.
+
+### Characterized
+
+- Slice 2 integration probes cover Tcl bytearray conversion, short and long
+  PCM inputs, repeated calls, language-default behavior, lifecycle paths,
+  timing, memory, and error handling.
+
 ## 2026-09-27 19:48:22 MDT (-0600) — Slice 1 closure
 
 ### Fixed

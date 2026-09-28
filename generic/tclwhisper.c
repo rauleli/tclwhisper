@@ -1,9 +1,22 @@
 #include <tcl.h>
 #include <whisper.h>
 
+#include <float.h>
 #include <inttypes.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdint.h>
+#include <string.h>
+
+#if CHAR_BIT != 8
+#error "tclwhisper requires 8-bit bytes for f32le PCM"
+#endif
+
+_Static_assert(sizeof(float) == 4,
+    "tclwhisper requires 32-bit float for f32le PCM");
+_Static_assert(
+    FLT_RADIX == 2 && FLT_MANT_DIG == 24 && FLT_MAX_EXP == 128,
+    "tclwhisper requires IEEE 754 binary32 float for f32le PCM");
 
 #define WHISPER_ASSOC_KEY "tclwhisper.handleIdentity"
 
@@ -89,7 +102,8 @@ static int
 WhisperGetHandle(
     Tcl_Interp *interp,
     Tcl_Obj *nameObj,
-    Tcl_Command *commandPtr)
+    Tcl_Command *commandPtr,
+    WhisperHandle **handlePtr)
 {
     Tcl_Command command;
     Tcl_CmdInfo info;
@@ -113,7 +127,12 @@ WhisperGetHandle(
         return WhisperInvalidHandle(interp);
     }
 
-    *commandPtr = command;
+    if (commandPtr != NULL) {
+        *commandPtr = command;
+    }
+    if (handlePtr != NULL) {
+        *handlePtr = handle;
+    }
     return TCL_OK;
 }
 
@@ -234,11 +253,95 @@ WhisperFreeCmd(
         return TCL_ERROR;
     }
 
-    if (WhisperGetHandle(interp, objv[1], &command) != TCL_OK) {
+    if (WhisperGetHandle(interp, objv[1], &command, NULL) != TCL_OK) {
         return TCL_ERROR;
     }
 
     Tcl_DeleteCommandFromToken(interp, command);
+    return TCL_OK;
+}
+
+static int
+WhisperTranscribeCmd(
+    void *clientData,
+    Tcl_Interp *interp,
+    int objc,
+    Tcl_Obj *const objv[])
+{
+    WhisperHandle *handle;
+    unsigned char *pcm;
+    int byteLength;
+    int nSamples;
+    float *samples;
+    struct whisper_full_params params;
+    int whisperResult;
+    int nSegments;
+    int i;
+    Tcl_Obj *result;
+
+    (void) clientData;
+
+    if (objc != 3) {
+        Tcl_WrongNumArgs(interp, 1, objv, "handle pcm");
+        return TCL_ERROR;
+    }
+
+    if (WhisperGetHandle(interp, objv[1], NULL, &handle) != TCL_OK) {
+        return TCL_ERROR;
+    }
+
+    pcm = Tcl_GetByteArrayFromObj(objv[2], &byteLength);
+    if (byteLength % (int) sizeof(float) != 0) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj(
+            "PCM f32le input requires complete 4-byte samples", -1));
+        Tcl_SetErrorCode(
+            interp, "TCLWHISPER", "PCM", "INVALID_LENGTH", NULL);
+        return TCL_ERROR;
+    }
+
+    if (byteLength == 0) {
+        Tcl_SetObjResult(interp, Tcl_NewObj());
+        return TCL_OK;
+    }
+
+    nSamples = byteLength / (int) sizeof(float);
+    samples = (float *) ckalloc((size_t) nSamples * sizeof(*samples));
+    for (i = 0; i < nSamples; i++) {
+        uint32_t bits =
+            ((uint32_t) pcm[4*i + 0]      ) |
+            ((uint32_t) pcm[4*i + 1] <<  8) |
+            ((uint32_t) pcm[4*i + 2] << 16) |
+            ((uint32_t) pcm[4*i + 3] << 24);
+
+        memcpy(&samples[i], &bits, sizeof(bits));
+    }
+
+    params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+    params.print_progress = false;
+    params.print_realtime = false;
+    params.print_timestamps = false;
+    params.print_special = false;
+
+    whisperResult = whisper_full(
+        handle->context, params, samples, nSamples);
+    if (whisperResult != 0) {
+        ckfree(samples);
+        Tcl_SetObjResult(interp, Tcl_ObjPrintf(
+            "whisper_full failed with code %d", whisperResult));
+        Tcl_SetErrorCode(
+            interp, "TCLWHISPER", "TRANSCRIBE", "FAILED", NULL);
+        return TCL_ERROR;
+    }
+
+    result = Tcl_NewObj();
+    nSegments = whisper_full_n_segments(handle->context);
+    for (i = 0; i < nSegments; i++) {
+        Tcl_AppendToObj(
+            result, whisper_full_get_segment_text(handle->context, i), -1);
+    }
+
+    ckfree(samples);
+    Tcl_SetObjResult(interp, result);
     return TCL_OK;
 }
 
@@ -271,6 +374,8 @@ Tclwhisper_Init(Tcl_Interp *interp)
         interp, "whisper::init", WhisperInitCmd, NULL, NULL);
     Tcl_CreateObjCommand(
         interp, "whisper::free", WhisperFreeCmd, NULL, NULL);
+    Tcl_CreateObjCommand(
+        interp, "whisper::transcribe", WhisperTranscribeCmd, NULL, NULL);
 
     return Tcl_PkgProvide(interp, "tclwhisper", "0.1");
 }

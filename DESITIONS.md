@@ -183,3 +183,23 @@ recibida de Tcl.
 - No se añade una API de filesystem.
 - Esta decisión documenta el contrato de `whisper::init` y no introduce
   funcionalidad perteneciente a Slice 2.
+
+## D-005 — Contrato PCM inicial de transcripción
+
+**Status:** approved
+
+### Decision
+
+La primera ruta de transcripción de `tclwhisper` acepta PCM mono, 16000 Hz,
+float32 little-endian, con muestras nominalmente normalizadas en el rango
+`[-1.0,+1.0]`.
+
+El binding no contiene adquisición de audio, decodificación de archivos,
+resampling, mezcla de canales ni normalización. El productor del PCM es
+responsable de cumplir el contrato.
+
+Una entrada PCM de longitud cero representa ausencia de audio y devuelve una
+cadena vacía sin invocar `whisper_full()`.
+
+Este es el contrato inicial de Slice 2 y no implica que formatos adicionales
+no puedan incorporarse posteriormente.
