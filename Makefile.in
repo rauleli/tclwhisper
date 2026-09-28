@@ -1,0 +1,57 @@
+PACKAGE = @PACKAGE_NAME@
+VERSION = @PACKAGE_VERSION@
+
+srcdir = @srcdir@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+libdir = @libdir@
+pkglibdir = $(libdir)/$(PACKAGE)$(VERSION)
+
+CC = @CC@
+CFLAGS = @CFLAGS@
+CPPFLAGS = @CPPFLAGS@
+LDFLAGS = @LDFLAGS@
+SHLIB_LD = @SHLIB_LD@
+SHLIB_CFLAGS = @SHLIB_CFLAGS@
+TCL_INCLUDE_SPEC = @TCL_INCLUDE_SPEC@
+TCL_STUB_LIB_SPEC = @TCL_STUB_LIB_SPEC@
+WHISPER_CFLAGS = @WHISPER_CFLAGS@
+WHISPER_LIBS = @WHISPER_LIBS@
+WHISPER_LINK_LDFLAGS = @WHISPER_LINK_LDFLAGS@
+WHISPER_RUNTIME_LDFLAGS = @WHISPER_RUNTIME_LDFLAGS@
+PKG_LIB_FILE = @PKG_LIB_FILE@
+TCLSH_PROG = @TCLSH_PROG@
+INSTALL = @INSTALL@
+INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+MKDIR_P = @MKDIR_P@
+
+OBJECTS = tclwhisper.o
+
+all: $(PKG_LIB_FILE) pkgIndex.tcl
+
+$(PKG_LIB_FILE): $(OBJECTS)
+	$(SHLIB_LD) -o $@ $(OBJECTS) $(LDFLAGS) $(WHISPER_LINK_LDFLAGS) \
+		$(WHISPER_RUNTIME_LDFLAGS) $(WHISPER_LIBS) $(TCL_STUB_LIB_SPEC)
+
+tclwhisper.o: $(srcdir)/generic/tclwhisper.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(SHLIB_CFLAGS) -DUSE_TCL_STUBS \
+		$(TCL_INCLUDE_SPEC) $(WHISPER_CFLAGS) -c $< -o $@
+
+test: all
+	printf '%s\n' 'package require tclwhisper' 'puts [whisper::version]' | \
+		TCLLIBPATH="$(CURDIR)" $(TCLSH_PROG)
+
+install: all
+	$(MKDIR_P) "$(DESTDIR)$(pkglibdir)"
+	$(INSTALL_PROGRAM) $(PKG_LIB_FILE) "$(DESTDIR)$(pkglibdir)/$(PKG_LIB_FILE)"
+	$(INSTALL_DATA) pkgIndex.tcl "$(DESTDIR)$(pkglibdir)/pkgIndex.tcl"
+
+clean:
+	rm -f $(OBJECTS) $(PKG_LIB_FILE)
+
+distclean: clean
+	rm -f Makefile pkgIndex.tcl config.log config.status
+	rm -rf autom4te.cache
+
+.PHONY: all test install clean distclean

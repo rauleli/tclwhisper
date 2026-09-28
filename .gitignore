@@ -1,0 +1,12 @@
+*.o
+*.so
+Makefile
+config.log
+config.status
+configure
+aclocal.m4
+autom4te.cache/
+pkgIndex.tcl
+tclconfig/config.guess
+tclconfig/config.sub
+git.sh
