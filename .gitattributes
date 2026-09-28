@@ -1,2 +1,7 @@
-configure -whitespace
+configure -whitespace linguist-generated
+aclocal.m4 linguist-generated
+
+tclconfig/** linguist-vendored
 tclconfig/tcl.m4 -whitespace
+
+*.tcl linguist-language=Tcl
