@@ -1,7 +1,18 @@
 #include <tcl.h>
 #include <whisper.h>
 
+#include <inttypes.h>
 #include <stdio.h>
+#include <stdint.h>
+
+#define WHISPER_ASSOC_KEY "tclwhisper.handleIdentity"
+
+typedef struct WhisperInterpState {
+    long instanceSeconds;
+    long instanceMicroseconds;
+    uint64_t nextHandleId;
+    int identitySpaceExhausted;
+} WhisperInterpState;
 
 typedef struct WhisperHandle {
     struct whisper_context *context;
@@ -13,6 +24,45 @@ static int WhisperHandleCmd(
     Tcl_Interp *interp,
     int objc,
     Tcl_Obj *const objv[]);
+
+static void
+WhisperInterpStateDelete(void *clientData, Tcl_Interp *interp)
+{
+    (void) interp;
+    ckfree(clientData);
+}
+
+static int
+WhisperNextHandleName(
+    Tcl_Interp *interp,
+    WhisperInterpState *state,
+    char *commandName,
+    size_t commandNameSize)
+{
+    uint64_t id;
+
+    while (!state->identitySpaceExhausted) {
+        id = state->nextHandleId;
+        if (id == UINT64_MAX) {
+            state->identitySpaceExhausted = 1;
+        } else {
+            state->nextHandleId++;
+        }
+
+        snprintf(commandName, commandNameSize,
+            "::whisper::context%ld_%06ld_%" PRIu64,
+            state->instanceSeconds, state->instanceMicroseconds, id);
+        if (Tcl_FindCommand(interp, commandName, NULL, TCL_GLOBAL_ONLY) == NULL) {
+            return TCL_OK;
+        }
+    }
+
+    Tcl_SetObjResult(interp, Tcl_NewStringObj(
+        "tclwhisper handle identity space exhausted", -1));
+    Tcl_SetErrorCode(interp, "TCLWHISPER", "HANDLE", "IDENTITY_EXHAUSTED",
+        NULL);
+    return TCL_ERROR;
+}
 
 static void
 WhisperHandleDelete(void *clientData)
@@ -109,16 +159,32 @@ WhisperInitCmd(
     int objc,
     Tcl_Obj *const objv[])
 {
+    WhisperInterpState *interpState;
     struct whisper_context_params params;
     struct whisper_context *context;
     WhisperHandle *handle;
     Tcl_Obj *result;
-    char commandName[80];
+    char commandName[128];
 
     (void) clientData;
 
     if (objc != 2) {
         Tcl_WrongNumArgs(interp, 1, objv, "model");
+        return TCL_ERROR;
+    }
+
+    interpState = (WhisperInterpState *) Tcl_GetAssocData(
+        interp, WHISPER_ASSOC_KEY, NULL);
+    if (interpState == NULL) {
+        Tcl_SetObjResult(interp, Tcl_NewStringObj(
+            "tclwhisper internal interpreter state is unavailable", -1));
+        Tcl_SetErrorCode(
+            interp, "TCLWHISPER", "INTERNAL", "STATE_UNAVAILABLE", NULL);
+        return TCL_ERROR;
+    }
+
+    if (WhisperNextHandleName(
+            interp, interpState, commandName, sizeof(commandName)) != TCL_OK) {
         return TCL_ERROR;
     }
 
@@ -136,8 +202,6 @@ WhisperInitCmd(
     handle->context = context;
     handle->command = NULL;
 
-    snprintf(commandName, sizeof(commandName),
-        "::whisper::context%p", (void *) handle);
     handle->command = Tcl_CreateObjCommand(
         interp, commandName, WhisperHandleCmd, handle, WhisperHandleDelete);
     if (handle->command == NULL) {
@@ -181,6 +245,9 @@ WhisperFreeCmd(
 DLLEXPORT int
 Tclwhisper_Init(Tcl_Interp *interp)
 {
+    WhisperInterpState *interpState;
+    Tcl_Time now;
+
     if (Tcl_InitStubs(interp, "8.6", 0) == NULL) {
         return TCL_ERROR;
     }
@@ -188,6 +255,15 @@ Tclwhisper_Init(Tcl_Interp *interp)
     if (Tcl_CreateNamespace(interp, "whisper", NULL, NULL) == NULL) {
         return TCL_ERROR;
     }
+
+    interpState = (WhisperInterpState *) ckalloc(sizeof(*interpState));
+    Tcl_GetTime(&now);
+    interpState->instanceSeconds = now.sec;
+    interpState->instanceMicroseconds = now.usec;
+    interpState->nextHandleId = 1;
+    interpState->identitySpaceExhausted = 0;
+    Tcl_SetAssocData(
+        interp, WHISPER_ASSOC_KEY, WhisperInterpStateDelete, interpState);
 
     Tcl_CreateObjCommand(
         interp, "whisper::version", WhisperVersionCmd, NULL, NULL);

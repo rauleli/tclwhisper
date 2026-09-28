@@ -156,3 +156,30 @@ inspeccionar
 → revisar
 → decidir el siguiente slice
 ```
+
+## D-004 — Preparación de la ruta del modelo
+
+**Status:** approved
+
+### Question
+
+¿Debe `tclwhisper` expandir o normalizar automáticamente la ruta recibida por
+`whisper::init` antes de entregarla a whisper.cpp?
+
+### Decision
+
+`tclwhisper` no expande ni normaliza la ruta del modelo antes de entregarla a
+upstream. En particular, no expande `~` ni canonicaliza componentes relativos
+o enlaces simbólicos. Si el llamador necesita una ruta normalizada, debe
+prepararla previamente mediante las operaciones de filesystem de Tcl, por
+ejemplo `file normalize`. El binding entrega a upstream la representación
+recibida de Tcl.
+
+### Consequences
+
+- El uso efectivo de rutas relativas o enlaces simbólicos queda sujeto al
+  comportamiento normal de upstream y del sistema de archivos; el binding no
+  los canonicaliza previamente.
+- No se añade una API de filesystem.
+- Esta decisión documenta el contrato de `whisper::init` y no introduce
+  funcionalidad perteneciente a Slice 2.

@@ -3,6 +3,52 @@
 This file records changes made to `tclwhisper` in chronological order.
 Dates and times use the local time zone stated in each entry.
 
+## 2026-09-27 19:48:22 MDT (-0600) — Slice 1 closure
+
+### Fixed
+
+- Replaced public handle names derived from state addresses with identities
+  generated from interpreter-associated state.
+- Prevented ABA aliasing: a handle identity is never reused during the life of
+  its interpreter, even after the corresponding command is destroyed.
+- Added an explicit collision check so a candidate name already owned by any
+  Tcl command is consumed and skipped rather than replaced.
+- Hardened `whisper::init` to retrieve its interpreter state from the owning
+  assoc data instead of retaining a duplicate pointer as command client data.
+
+### Characterized
+
+- The address-based implementation reproduced stale-handle aliasing in all 12
+  pre-change iterations: the allocator reused the state address immediately.
+- A handle renamed to a non-empty name remains valid through its unchanged Tcl
+  command token. The original name becomes invalid, while `whisper::free` on
+  the new name invokes the existing single cleanup path.
+- Handle identity generators are independent per interpreter and their
+  associated state is deleted with the interpreter.
+- Model paths remain unmodified by the binding. Callers are responsible for
+  any desired Tcl filesystem expansion or normalization; relative paths and
+  symbolic links remain usable according to upstream and filesystem behavior.
+
+### Validated
+
+- Eight repeated stale-handle cycles produced distinct old and new names; each
+  old name remained invalid without affecting its live replacement.
+- A foreign Tcl procedure occupying the next candidate name was preserved and
+  the new handle safely skipped to the following identity.
+- Explicit free, empty-name rename, non-empty rename followed by free, and
+  interpreter deletion each invoked handle cleanup exactly once.
+- Valgrind reported zero definitely or indirectly lost bytes and zero errors
+  across the corrected lifecycle and failure paths.
+- The final non-instrumented build passes with `-Wall -Wextra -Werror`.
+- Missing interpreter assoc data produces a clean Tcl error instead of using
+  stale command client data.
+
+### Scope
+
+- The original Slice 1 history remains intact; this entry records its separate
+  identity-hardening closure.
+- No new public API or Slice 2 functionality was added.
+
 ## 2026-09-27 19:15:51 MDT (-0600) — Slice 1
 
 ### Added

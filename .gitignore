@@ -1,5 +1,6 @@
 *.o
 *.so
+valgrind-*.log
 Makefile
 config.log
 config.status
