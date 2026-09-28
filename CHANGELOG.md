@@ -3,6 +3,31 @@
 This file records changes made to `tclwhisper` in chronological order.
 Dates and times use the local time zone stated in each entry.
 
+## 2026-09-27 23:58:02 MDT (-0600) — Slice 3
+
+### Added
+
+- Added the per-call `-language language|auto` option to the blocking
+  `whisper::transcribe` command.
+- Added the first strict option parser, including rejection of unknown,
+  missing, and repeated options.
+- Added upstream-backed validation for explicit language codes and names.
+
+### Behavior
+
+- Explicit languages apply only to the current transcription; omitting the
+  option retains the Slice 2 upstream default.
+- `-language auto` requests native language detection followed by
+  transcription without enabling detection-only mode.
+- An empty language is rejected instead of acting as an implicit alias for
+  `auto`.
+- Option syntax and values are validated before the empty-PCM shortcut.
+
+### Characterized
+
+- Spanish, English, and automatic selection were compared using the existing
+  multilingual tiny model and local Spanish and English PCM samples.
+
 ## 2026-09-27 21:35:02 MDT (-0600) — Slice 2
 
 ### Added

@@ -278,16 +278,67 @@ WhisperTranscribeCmd(
     int nSegments;
     int i;
     Tcl_Obj *result;
+    Tcl_Obj *languageValueObj = NULL;
+    Tcl_Obj *languageObj = NULL;
+    int languageSeen = 0;
 
     (void) clientData;
 
-    if (objc != 3) {
-        Tcl_WrongNumArgs(interp, 1, objv, "handle pcm");
+    if (objc < 3) {
+        Tcl_WrongNumArgs(
+            interp, 1, objv, "handle pcm ?-language language|auto?");
         return TCL_ERROR;
     }
 
     if (WhisperGetHandle(interp, objv[1], NULL, &handle) != TCL_OK) {
         return TCL_ERROR;
+    }
+
+    for (i = 3; i < objc; i += 2) {
+        const char *option;
+        const char *language;
+
+        if (i + 1 >= objc) {
+            Tcl_WrongNumArgs(
+                interp, 1, objv, "handle pcm ?-language language|auto?");
+            return TCL_ERROR;
+        }
+
+        option = Tcl_GetString(objv[i]);
+        if (strcmp(option, "-language") != 0) {
+            Tcl_SetObjResult(interp, Tcl_ObjPrintf(
+                "unknown option \"%s\": must be -language", option));
+            Tcl_SetErrorCode(
+                interp, "TCLWHISPER", "OPTION", "UNKNOWN", NULL);
+            return TCL_ERROR;
+        }
+
+        if (languageSeen) {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj(
+                "option \"-language\" may be specified only once", -1));
+            Tcl_SetErrorCode(
+                interp, "TCLWHISPER", "OPTION", "DUPLICATE", NULL);
+            return TCL_ERROR;
+        }
+        languageSeen = 1;
+        languageValueObj = objv[i + 1];
+        language = Tcl_GetString(languageValueObj);
+
+        if (language[0] == '\0') {
+            Tcl_SetObjResult(interp, Tcl_NewStringObj(
+                "invalid language \"\": use \"auto\" for autodetection", -1));
+            Tcl_SetErrorCode(
+                interp, "TCLWHISPER", "LANGUAGE", "INVALID", NULL);
+            return TCL_ERROR;
+        }
+
+        if (strcmp(language, "auto") != 0 && whisper_lang_id(language) < 0) {
+            Tcl_SetObjResult(interp, Tcl_ObjPrintf(
+                "invalid language \"%s\"", language));
+            Tcl_SetErrorCode(
+                interp, "TCLWHISPER", "LANGUAGE", "INVALID", NULL);
+            return TCL_ERROR;
+        }
     }
 
     pcm = Tcl_GetByteArrayFromObj(objv[2], &byteLength);
@@ -321,11 +372,19 @@ WhisperTranscribeCmd(
     params.print_realtime = false;
     params.print_timestamps = false;
     params.print_special = false;
+    if (languageValueObj != NULL) {
+        languageObj = Tcl_DuplicateObj(languageValueObj);
+        Tcl_IncrRefCount(languageObj);
+        params.language = Tcl_GetString(languageObj);
+    }
 
     whisperResult = whisper_full(
         handle->context, params, samples, nSamples);
     if (whisperResult != 0) {
         ckfree(samples);
+        if (languageObj != NULL) {
+            Tcl_DecrRefCount(languageObj);
+        }
         Tcl_SetObjResult(interp, Tcl_ObjPrintf(
             "whisper_full failed with code %d", whisperResult));
         Tcl_SetErrorCode(
@@ -341,6 +400,9 @@ WhisperTranscribeCmd(
     }
 
     ckfree(samples);
+    if (languageObj != NULL) {
+        Tcl_DecrRefCount(languageObj);
+    }
     Tcl_SetObjResult(interp, result);
     return TCL_OK;
 }

@@ -203,3 +203,45 @@ cadena vacía sin invocar `whisper_full()`.
 
 Este es el contrato inicial de Slice 2 y no implica que formatos adicionales
 no puedan incorporarse posteriormente.
+
+## D-006 — Selección de idioma por transcripción
+
+**Status:** approved
+
+### Decision
+
+`whisper::transcribe` permite seleccionar el idioma para una llamada individual
+mediante `-language`. Sin la opción se conserva el comportamiento default
+utilizado desde Slice 2.
+
+La sintaxis pública es:
+
+```text
+whisper::transcribe <handle> <pcm> ?-language <language|auto>?
+```
+
+Un identificador explícito validado mediante `whisper_lang_id()` selecciona el
+idioma únicamente para la llamada actual. `-language auto` utiliza la semántica
+nativa de `params.language = "auto"`: autodetecta el idioma y continúa con la
+transcripción, sin activar la operación separada `params.detect_language`.
+
+La cadena vacía no es un alias público de `auto`; la autodetección debe
+solicitarse explícitamente mediante `-language auto`.
+
+La selección no se almacena en el handle ni afecta llamadas posteriores.
+`tclwhisper` no mantiene una tabla propia de idiomas y delega a upstream la
+aceptación de códigos y nombres, excepto por las restricciones deliberadas de
+esta API.
+
+### Observed upstream acceptance
+
+- `"es"` es aceptado y resuelve al identificador 3 (`es`).
+- `"spanish"` es aceptado y resuelve al identificador 3 (`es`).
+- `"ES"` es rechazado.
+- `"es "` —con un espacio final— es rechazado.
+- `""` es rechazado deliberadamente por `tclwhisper`, aunque upstream lo
+  interpreta como solicitud de autodetección.
+- `"auto"` es el valor especial público para autodetección seguida de
+  transcripción.
+- Upstream compara exactamente: el binding no normaliza mayúsculas, espacios,
+  nombres ni aliases.
