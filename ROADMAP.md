@@ -35,7 +35,7 @@ The binding follows the principle:
   - `-language <language|auto>`
   - no language state stored in the handle
 
-- Repository portability / publishing preparation
+- Infrastructure phase — Repository portability / publishing preparation
   - portable build documentation
   - clean-source build/install validation
   - reproducible benchmark tooling
@@ -54,6 +54,14 @@ including:
 
 Measurements should help determine whether controls such as thread count or
 other inference parameters are actually useful to the intended deployment.
+
+Evidence from intended Iik' workloads — including aviation phraseology,
+mixed Spanish/English commands, and the intended operator's own voice — should
+be collected and recorded or referenced in `CHARACTERIZATION.md` before a
+future slice that depends on recognition behavior is selected. The evidence
+relevant to a proposed slice should be reviewed before that slice is approved;
+this does not make those corpora an unconditional prerequisite for a purely
+introspective slice that does not depend on recognition behavior.
 
 ## Possible future slices
 
