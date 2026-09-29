@@ -150,10 +150,11 @@ The experimental [source](initial_prompt.cpp) compiled with
 ## Textual evaluation and limits
 
 - **test1:** `Squawk 7700` survives, with lowercase `squawk` and a final
-  period. The opening `y` becomes `Iik',`. The exact spoken opening has not
-  been supplied, so this change cannot yet be classified as a correction or
-  prompt-induced error. The maintainer was asked for that reference; it is
-  not inferred from the model output.
+  period. The opening `y` becomes `Iik',`. At experiment time the exact spoken
+  opening had not been supplied, so this change could not then be classified.
+  On 2026-09-29 the operator subsequently confirmed that `Iik'` was spoken;
+  this makes the prompted opening a correction in this recording, not a
+  general prompt-accuracy claim.
 - **test2:** The complete transcription is unchanged, including ILS and
   `pista 2-1`. No degradation is observed in this control.
 - **test3:** Only `Notam` becomes `NOTAM`; Chihuahua and the rest of the
@@ -168,14 +169,14 @@ The experimental [source](initial_prompt.cpp) compiled with
   vocabulary improvement.
 
 This provides concrete evidence of operational utility on test5, with no
-meaningful degradation observed in controls test2–4. The opening of test1
-remains an explicit uncertainty, so a claim of improvement without any
-degradation across the entire corpus would be premature. It could be a
-correction or contextual bias; the available reference does not distinguish
-them. No upstream runtime error was observed.
+meaningful degradation observed in controls test2–4. The subsequent operator
+reference also establishes a correction at the opening of test1. No upstream
+runtime error was observed.
 
 This is one controlled pair per recording, one model, and one shared prompt
 on this CPU. It does not establish repeatability, general accuracy, behavior
 on unrelated vocabulary, or portable timing. No automatic score was used as
 the sole quality criterion. These findings are characterization evidence,
-not an implementation of Slice 5.
+not an implementation of Slice 5. The later binding reproduction and its
+remaining limits are recorded in
+[CHARACTERIZATION.md](../../CHARACTERIZATION.md).

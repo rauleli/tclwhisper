@@ -12,7 +12,10 @@ stable release.
 whisper::version
 whisper::init model
 whisper::free handle
-whisper::transcribe handle pcm ?-language language|auto? ?-n_threads integer?
+whisper::transcribe $handle $pcm \
+    ?-language language|auto? \
+    ?-n_threads integer? \
+    ?-initial_prompt text?
 ```
 
 Each successful `whisper::init` creates an independent context and returns a
@@ -30,7 +33,21 @@ whisper::transcribe $handle $pcm -language auto
 
 `-n_threads` accepts a positive integer representable as upstream `int`, applies
 only to this call, and changes only `params.n_threads`. Omission preserves the
-upstream default. Options may appear in either order, at most once each.
+upstream default.
+
+`-initial_prompt` supplies caller-chosen context vocabulary for one blocking
+transcription. Omitting it and passing `-initial_prompt ""` are equivalent:
+neither supplies a prompt to upstream. A nonempty prompt is not stored in the
+handle or carried into later calls by the binding. The Iik' Tcl orchestrator
+or other caller constructs the text; this binding does not add domain terms,
+combine prompts, or normalize the transcription. Upstream's
+`carry_initial_prompt` remains false and is not exposed as a Tcl option. Do
+not assume a prompt improves every utterance or applies to only one internal
+window. See [CHARACTERIZATION.md](CHARACTERIZATION.md) for the measured corpus.
+
+The three options may appear in any order, at most once each. Unknown,
+duplicated, or missing options are rejected before PCM processing, including
+for empty PCM.
 
 Without `-language`, the characterized whisper.cpp v1.9.4 default is English.
 `auto` performs upstream language detection before transcription and has a

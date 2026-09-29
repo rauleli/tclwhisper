@@ -40,6 +40,11 @@ The binding follows the principle:
   - no handle state; omission preserves upstream default
   - RTX matrix completed; see `CHARACTERIZATION.md`
 
+- Slice 5 — Per-call initial prompt (completed)
+  - `-initial_prompt text`; omission and empty text are equivalent
+  - no handle state; caller constructs the prompt
+  - binding reproduction on the operator-voice corpus; see `CHARACTERIZATION.md`
+
 - Infrastructure phase — Repository portability / publishing preparation
   - portable build documentation
   - clean-source build/install validation
@@ -64,14 +69,9 @@ introspective slice that does not depend on recognition behavior.
 
 `whisper::info` remains deferred: no operational consumer has been identified.
 
-### Slice 5 — Per-call initial_prompt (selected, not implemented)
-
-D-009 selects `-initial_prompt text` for `whisper::transcribe` on a per-call
-basis, supported by the operator-voice characterization in
-`experiments/initial_prompt/` and summarized in `CHARACTERIZATION.md`.
-Selection does not mean implementation or completion. D-008 continues to
-defer possible `s16le` support until Iik's real audio acquisition and
-normalization pipeline is characterized; it is not part of Slice 5.
+D-008 continues to defer possible `s16le` support until Iik's real audio
+acquisition and normalization pipeline is characterized; it was not part of
+Slice 5.
 
 ### Slice 6 — Additional inference controls
 

@@ -3,6 +3,28 @@
 This file records changes made to `tclwhisper` in chronological order.
 Dates and times use the local time zone stated in each entry.
 
+## 2026-09-29 UTC — Slice 5
+
+- Added per-call `whisper::transcribe ... -initial_prompt text`, accepted in
+  any order with `-language` and `-n_threads`. Empty text and omission both
+  leave `params.initial_prompt` null. Prompts are call-local, with no handle
+  or global state; upstream `no_context=true` and
+  `carry_initial_prompt=false` remain unchanged.
+- Extended the existing option error scheme for duplicates, missing arguments
+  and unknown options, including validation before the empty-PCM shortcut.
+  Consolidated post-inference cleanup of the sample buffer and call-local Tcl
+  string references on success and upstream failure.
+- Strict `-O2 -Wall -Wextra -Werror` build, `make test`, 78 model-dependent
+  parser checks, and a real-binding comparison on five operator recordings
+  passed. On this host, model and corpus, `test5` changed `BFR` to `VFR` and
+  `Herring` to `heading` with the shared prompt; controls `test2`–`test4`
+  showed no relevant degradation. Omitted and empty prompts matched on
+  `test5`; a later no-prompt call on the same handle reproduced its baseline.
+- Memcheck found no invalid operations or definite/indirect losses on the
+  parser checks and a short-audio upstream-error path with a nonempty prompt.
+  Full real-audio inference was not run under Memcheck. These observations do
+  not establish a general recognition improvement.
+
 ## 2026-09-29 UTC — Slice 4
 
 - Added per-call `whisper::transcribe ... -n_threads integer`, compatible with

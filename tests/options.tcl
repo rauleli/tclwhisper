@@ -19,21 +19,42 @@ try {
     foreach options {{} {-language es} {-language spanish} {-language auto}
         {-n_threads 1} {-n_threads 2} {-n_threads 4} {-n_threads 8}
         {-n_threads 2147483647} {-language es -n_threads 4}
-        {-n_threads 4 -language es}} {
+        {-n_threads 4 -language es}
+        {-initial_prompt {Iik', VFR, heading}} {-initial_prompt {}}
+        {-language spanish -initial_prompt {Iik', VFR}}
+        {-initial_prompt {Iik', VFR} -language spanish}
+        {-n_threads 4 -initial_prompt {Iik', VFR}}
+        {-initial_prompt {Iik', VFR} -n_threads 4}
+        {-language spanish -n_threads 4 -initial_prompt {Iik', VFR}}
+        {-initial_prompt {Iik', VFR} -n_threads 4 -language spanish}} {
         check $h {} $options OK
     }
-    foreach options {{-unknown x} {-language es -unknown x} {-n_threads 2 -unknown x}} {
-        check $h {} $options {TCLWHISPER OPTION UNKNOWN}
+    foreach options {{-unknown x} {-language es -unknown x} {-n_threads 2 -unknown x}
+        {-unknown x -initial_prompt foo} {-initial_prompt foo -unknown x}
+        {-initial_prompt foo -n_threads 2 -unknown x}} {
+        foreach pcm {{} x} {
+            check $h $pcm $options {TCLWHISPER OPTION UNKNOWN}
+        }
     }
     foreach options {{-language} {-n_threads} {-language es -n_threads}
-        {-n_threads 2 -language}} {
+        {-n_threads 2 -language} {-initial_prompt}
+        {-language spanish -initial_prompt}
+        {-n_threads 4 -initial_prompt}} {
         check $h {} $options {TCL WRONGARGS}
     }
     foreach options {{-language es -language en} {-n_threads 1 -n_threads 2}
         {-language es -n_threads 2 -language en}
-        {-n_threads 2 -language es -n_threads 4}} {
+        {-n_threads 2 -language es -n_threads 4}
+        {-initial_prompt foo -initial_prompt bar}
+        {-language spanish -initial_prompt foo -initial_prompt bar}
+        {-initial_prompt foo -n_threads 4 -initial_prompt bar}} {
         check $h {} $options {TCLWHISPER OPTION DUPLICATE}
     }
+    check $h x {-initial_prompt} {TCL WRONGARGS}
+    check $h x {-initial_prompt foo -initial_prompt bar} {TCLWHISPER OPTION DUPLICATE}
+    check $h {} {-initial_prompt foo -n_threads 0} {TCLWHISPER N_THREADS INVALID}
+    check $h {} {-initial_prompt foo -language nonexistent} {TCLWHISPER LANGUAGE INVALID}
+    check invalidHandle {} {-language spanish -n_threads 4 -initial_prompt foo} {TCLWHISPER HANDLE INVALID}
     foreach value {0 -1 abc {} 1.5 2147483648 4294967297 9223372036854775808 18446744073709551617 -18446744073709551615} {
         foreach pcm {{} x} {
             check $h $pcm [list -n_threads $value] {TCLWHISPER N_THREADS INVALID}

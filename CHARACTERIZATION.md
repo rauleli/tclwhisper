@@ -516,15 +516,75 @@ no-prompt control reproduced its previously supplied baseline exactly.
 With the prompt, `test5` changed `BFR` to the spoken `VFR` and `Herring` to
 the spoken `heading`. Controls `test2`–`test4` had no relevant degradation;
 `test4` preserved the spoken NATO-alphabet waypoint rather than converting it
-to an identifier. The opening of `test1` changed, but its exact spoken opening
-was not preserved, so that change cannot yet be scored as improvement or
-degradation. Under these specific conditions, a common contextual prompt
-produced concrete domain-term improvements without relevant control-sample
-degradation. One run per condition with one model cannot establish that
-`initial_prompt` generally improves transcription.
+to an identifier. The opening of `test1` changed from `y` to `Iik',`. At the
+time of the experiment its spoken reference had not been preserved; on
+2026-09-29 the operator confirmed that `Iik'` was spoken. This is a correction
+for that recording. Under these specific conditions, a common contextual
+prompt produced concrete domain-term improvements without relevant
+control-sample degradation. One run per condition with one model cannot
+establish that `initial_prompt` generally improves transcription.
 
-Nonblocking follow-up characterization for Slice 5 includes audio longer than
-30 s with a domain term in a later internal window, interaction with
-`-language auto`, and generic versus mission-specific prompts. Constructing
-mission-specific prompts belongs to the Iik' Tcl orchestrator, not this
-binding. These are open measurements, not reported results.
+### Slice 5 reproduction with the public binding
+
+On 2026-09-29 UTC, the Slice 5 binding was tested on `gepeto` (x86_64,
+AMD Phenom II X4 965, four online cores), with the CPU-only whisper.cpp v1.9.4
+installation from source commit `927cfce34f31707e17f2bff35c349632fb9e2c3a`.
+The model was the same checksummed `ggml-small.bin` as above, and the five
+audio checksums matched the experimental record. The pre-Slice-5 tclwhisper
+revision was `da04866b022018587c3e567b8a2f7a0c7b3dcffb`.
+
+Each call used the same raw PCM, greedy defaults, `-language spanish` and
+`-n_threads 4`; treatment added only this exact prompt:
+
+```text
+Iik', squawk, ILS, NOTAM, waypoint, VFR, heading, KREPE, Chihuahua.
+```
+
+The model was initialized once. For `test1`–`test4`, the no-prompt call
+preceded the prompted call. For `test5`, the prompted call preceded the
+no-prompt call, followed by `-initial_prompt ""`. Timing is wall-clock around
+the blocking Tcl transcription call, excluding model initialization and file
+read. These are single runs, not a formal latency benchmark.
+
+| Audio | No prompt: exact text; seconds | Prompt: exact text; seconds |
+|---|---|---|
+| `test1.f32` | ` y confirma el Squawk 7700`; 66.222439 | ` Iik', confirma el squawk 7700.`; 69.462792 |
+| `test2.f32` | ` Estamos establecidos en el ILS de la pista 2-1.`; 67.347342 | ` Estamos establecidos en el ILS de la pista 2-1.`; 70.327103 |
+| `test3.f32` | ` Revisa el Notam para Chihuahua.`; 66.477150 | ` Revisa el NOTAM para Chihuahua.`; 69.072701 |
+| `test4.f32` | ` El siguiente Waypoint es Kilo Romeo Echo Papa Echo`; 66.769540 | ` El siguiente waypoint es Kilo Romeo Echo Papa Echo.`; 69.633381 |
+| `test5.f32` | ` Confirma BFR y mantén Herring 270.`; 66.745968 | ` Confirma VFR y mantén heading 270.`; 69.605500 |
+
+All five no-prompt texts reproduced their prior baselines. On `test1`, the
+operator-confirmed `Iik'` improved the opening. On `test5`, `BFR → VFR` and
+`Herring → heading` corrected the two target errors. `test2` was unchanged;
+`test3` changed only NOTAM capitalization; `test4` preserved the valid spoken
+NATO sequence, with only capitalization and punctuation changes. Those are
+not substantive improvements or relevant degradations.
+
+On the same handle, a prompted `test5` call followed by a no-prompt call
+returned the baseline again. A third call with `-initial_prompt ""` returned
+that same baseline (`66.718927 s`), confirming empty/omitted equivalence in
+this probe and no observed call-to-call prompt persistence.
+
+For a separate compatibility probe with `ggml-tiny.bin` and `audio1.f32`, the
+four preexisting call forms (no options, `-language spanish`, `-n_threads 4`,
+and both options) returned respectively ` The name of the manor.`,
+` El niño toca la guitarra en la mañana.`, ` The name of the manor.`, and
+` El niño toca la guitarra en la mañana.`. These texts match the historical
+default-English and explicit-Spanish outcomes; the corresponding times were
+6.526941, 5.873722, 6.473636 and 5.834952 s. This checks compatibility on
+one recording, not all prior inputs.
+
+An additional same-handle `test5` pair used `-language auto` with the same
+model, PCM, thread count and prompt. Upstream reported `es` with
+`p = 0.934197` both without and with the prompt. The texts were respectively
+` Confirma BFR y mantén Herring 270.` (132.561897 s) and
+` Confirma VFR y mantén heading 270.` (135.153723 s). This one sample shows
+no change in detected language, not a general rule for `auto`.
+
+Nonblocking follow-up includes audio longer than 30 s with a domain term in
+a later internal window (no suitable supplied `.f32` exists), broader
+interaction checks with `-language auto`, and generic versus mission-specific
+prompts. Constructing mission-specific prompts belongs to the Iik' Tcl
+orchestrator, not this binding. These are open questions, not portable
+performance or recognition guarantees.

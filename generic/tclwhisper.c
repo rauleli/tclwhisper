@@ -280,15 +280,19 @@ WhisperTranscribeCmd(
     Tcl_Obj *result;
     Tcl_Obj *languageValueObj = NULL;
     Tcl_Obj *languageObj = NULL;
+    Tcl_Obj *promptValueObj = NULL;
+    Tcl_Obj *promptObj = NULL;
     int languageSeen = 0;
     int threadsSeen = 0;
+    int promptSeen = 0;
     int nThreads = 0;
+    int status;
 
     (void) clientData;
 
     if (objc < 3) {
         Tcl_WrongNumArgs(
-            interp, 1, objv, "handle pcm ?-language language|auto? ?-n_threads integer?");
+            interp, 1, objv, "handle pcm ?-language language|auto? ?-n_threads integer? ?-initial_prompt text?");
         return TCL_ERROR;
     }
 
@@ -302,11 +306,23 @@ WhisperTranscribeCmd(
 
         if (i + 1 >= objc) {
             Tcl_WrongNumArgs(
-                interp, 1, objv, "handle pcm ?-language language|auto? ?-n_threads integer?");
+                interp, 1, objv, "handle pcm ?-language language|auto? ?-n_threads integer? ?-initial_prompt text?");
             return TCL_ERROR;
         }
 
         option = Tcl_GetString(objv[i]);
+        if (strcmp(option, "-initial_prompt") == 0) {
+            if (promptSeen) {
+                Tcl_SetObjResult(interp, Tcl_NewStringObj(
+                    "option \"-initial_prompt\" may be specified only once", -1));
+                Tcl_SetErrorCode(
+                    interp, "TCLWHISPER", "OPTION", "DUPLICATE", NULL);
+                return TCL_ERROR;
+            }
+            promptSeen = 1;
+            promptValueObj = objv[i + 1];
+            continue;
+        }
         if (strcmp(option, "-n_threads") == 0) {
             Tcl_WideInt value;
 
@@ -333,7 +349,7 @@ WhisperTranscribeCmd(
         }
         if (strcmp(option, "-language") != 0) {
             Tcl_SetObjResult(interp, Tcl_ObjPrintf(
-                "unknown option \"%s\": must be -language or -n_threads", option));
+                "unknown option \"%s\": must be -language, -n_threads or -initial_prompt", option));
             Tcl_SetErrorCode(
                 interp, "TCLWHISPER", "OPTION", "UNKNOWN", NULL);
             return TCL_ERROR;
@@ -401,39 +417,46 @@ WhisperTranscribeCmd(
     params.print_realtime = false;
     params.print_timestamps = false;
     params.print_special = false;
+    params.initial_prompt = NULL;
+    /* Retain call-local Tcl string storage until whisper_full returns. */
     if (languageValueObj != NULL) {
         languageObj = Tcl_DuplicateObj(languageValueObj);
         Tcl_IncrRefCount(languageObj);
         params.language = Tcl_GetString(languageObj);
     }
+    if (promptValueObj != NULL && Tcl_GetString(promptValueObj)[0] != '\0') {
+        promptObj = Tcl_DuplicateObj(promptValueObj);
+        Tcl_IncrRefCount(promptObj);
+        params.initial_prompt = Tcl_GetString(promptObj);
+    }
 
     whisperResult = whisper_full(
         handle->context, params, samples, nSamples);
     if (whisperResult != 0) {
-        ckfree(samples);
-        if (languageObj != NULL) {
-            Tcl_DecrRefCount(languageObj);
-        }
         Tcl_SetObjResult(interp, Tcl_ObjPrintf(
             "whisper_full failed with code %d", whisperResult));
         Tcl_SetErrorCode(
             interp, "TCLWHISPER", "TRANSCRIBE", "FAILED", NULL);
-        return TCL_ERROR;
-    }
-
-    result = Tcl_NewObj();
-    nSegments = whisper_full_n_segments(handle->context);
-    for (i = 0; i < nSegments; i++) {
-        Tcl_AppendToObj(
-            result, whisper_full_get_segment_text(handle->context, i), -1);
+        status = TCL_ERROR;
+    } else {
+        result = Tcl_NewObj();
+        nSegments = whisper_full_n_segments(handle->context);
+        for (i = 0; i < nSegments; i++) {
+            Tcl_AppendToObj(
+                result, whisper_full_get_segment_text(handle->context, i), -1);
+        }
+        Tcl_SetObjResult(interp, result);
+        status = TCL_OK;
     }
 
     ckfree(samples);
     if (languageObj != NULL) {
         Tcl_DecrRefCount(languageObj);
     }
-    Tcl_SetObjResult(interp, result);
-    return TCL_OK;
+    if (promptObj != NULL) {
+        Tcl_DecrRefCount(promptObj);
+    }
+    return status;
 }
 
 DLLEXPORT int
