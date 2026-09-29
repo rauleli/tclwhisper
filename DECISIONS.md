@@ -322,3 +322,157 @@ promete recursos suficientes para ejecutar valores extremos.
 
 No cambia ningún otro control de reconocimiento ni el lifecycle. La evidencia
 RTX y las limitaciones de la matriz constan en `CHARACTERIZATION.md`.
+
+## D-008 — Soporte `s16le` diferido hasta caracterizar el pipeline real de audio
+
+**Status:** approved
+
+### Question
+
+¿Debe `tclwhisper` ampliar `whisper::transcribe` para aceptar PCM `s16le` y
+convertirlo internamente a `float32`, o debe conservar por ahora su contrato
+exclusivo de PCM `f32le`?
+
+### Evidence
+
+D-005 estableció como contrato inicial que `tclwhisper` recibe PCM:
+
+```text
+mono
+16000 Hz
+IEEE-754 float32 little-endian
+```
+
+y que el binding no realiza adquisición de audio, resampling, mezcla de
+canales, decodificación de archivos ni normalización.
+
+`whisper.cpp` consume muestras `const float *` en `whisper_full()` y no expone
+una ruta nativa de inferencia que acepte directamente PCM `int16`.
+
+La conversión candidata para `s16le` está técnicamente bien entendida:
+
+```text
+float_sample = int16_sample / 32768.0f
+```
+
+con:
+
+```text
+-32768 → -1.0
+0      → 0.0
+32767  → 0.999969482421875
+```
+
+Por tanto, no existe una incertidumbre técnica importante sobre cómo podría
+implementarse esa conversión si se aprobara posteriormente.
+
+Sin embargo, todavía no existe evidencia del pipeline final de adquisición y
+normalización de Iik’ que demuestre que `tclwhisper` deba poseerla.
+
+En particular, todavía debe caracterizarse:
+
+1. qué representación PCM entrega realmente el hardware o la capa de
+   adquisición;
+2. qué componente recibe esa representación;
+3. qué transformaciones realiza dicho componente;
+4. qué representación PCM entrega finalmente a `tclwhisper`;
+5. si existe una conversión redundante que aceptar `s16le` directamente en
+   `tclwhisper` permitiría eliminar.
+
+El argumento de rendimiento frente a convertir muestra por muestra en Tcl
+puro no es suficiente por sí solo para decidir la frontera, porque la
+arquitectura no obliga a que esa conversión viva en Tcl. Puede existir una
+capa nativa reutilizable de audio antes del STT.
+
+### Decision
+
+`tclwhisper` **no incorporará soporte `s16le` por ahora**.
+
+El contrato público de entrada permanece:
+
+```text
+mono
+16000 Hz
+IEEE-754 float32 little-endian
+```
+
+No se añadirá en este momento:
+
+```tcl
+-format s16le
+```
+
+ni ninguna otra opción de formato PCM.
+
+Esta decisión continúa la frontera establecida por D-005: `tclwhisper` recibe
+audio ya preparado para la representación nativa que consume `whisper.cpp` y
+no asume responsabilidades generales de normalización de audio.
+
+Esta decisión no rechaza técnicamente `s16le` ni declara que nunca deba
+incorporarse.
+
+La propuesta queda diferida hasta caracterizar el pipeline real de
+adquisición y normalización de Iik’.
+
+### Reconsideration criteria
+
+Esta decisión deberá revisarse cuando el pipeline de audio de Iik’ esté
+suficientemente caracterizado para responder explícitamente:
+
+- qué formato entrega el hardware o la captura;
+- qué capa recibe ese formato;
+- si existe una capa nativa de conversión o normalización;
+- qué formato entrega esa capa a `tclwhisper`;
+- si aceptar `s16le` directamente en `tclwhisper` eliminaría una conversión
+  real o únicamente desplazaría/duplicaría una responsabilidad.
+
+Si el pipeline final no incluye una capa nativa de normalización y entrega
+`s16le` directamente hacia el consumidor STT, entonces la conversión
+`s16le → float32` deberá existir en algún componente. En ese escenario,
+`tclwhisper` podrá reconsiderarse como candidato natural para alojarla.
+
+### Preserved implementation candidate
+
+Si evidencia futura justifica soporte `s16le`, la candidata actualmente mejor
+entendida sería:
+
+```tcl
+whisper::transcribe $handle $pcm \
+    ?-format f32le|s16le? \
+    ?-language language|auto? \
+    ?-n_threads integer?
+```
+
+con:
+
+```text
+default: f32le
+s16le conversion: int16 / 32768.0f
+```
+
+y sin introducir:
+
+- resampling;
+- channel mixing;
+- normalización de volumen;
+- file decoding;
+- WAV/RIFF parsing;
+- adquisición ALSA;
+- VAD;
+- streaming.
+
+Esta sección preserva únicamente un diseño candidato. No aprueba esa API ni
+forma parte del contrato público actual.
+
+### Consequences
+
+- `tclwhisper` conserva una frontera pequeña y estable.
+- Se mantiene la continuidad arquitectónica con D-005.
+- Una conversión PCM genérica puede residir en una capa nativa reutilizable de
+  audio cuando la arquitectura real lo justifique.
+- Otros consumidores futuros no tendrían que depender de `tclwhisper` para
+  una transformación PCM genérica.
+- `s16le` puede reconsiderarse sin rediscutir desde cero su posible
+  representación y escala.
+- Slice 5 queda libre para seleccionar otra capacidad con evidencia
+  operacional más fuerte.

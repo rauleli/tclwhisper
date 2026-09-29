@@ -64,15 +64,13 @@ introspective slice that does not depend on recognition behavior.
 
 `whisper::info` remains an unselected candidate, outside completed Slice 4.
 
-### Slice 5 — Additional PCM representation
+### Slice 5 — To be selected
 
-Possible support for `s16le`.
-
-This requires an explicit architectural decision because whisper.cpp consumes
-floating-point PCM directly. Supporting `s16le` would add conversion behavior
-inside the binding rather than merely expose an upstream capability.
-
-No resampling, channel mixing, file decoding, or audio acquisition is implied.
+No capability has been selected for Slice 5. D-008 defers possible `s16le`
+support until Iik's actual audio acquisition and normalization pipeline is
+characterized. The resulting evidence may justify reconsidering conversion
+inside `tclwhisper`, but D-008 does not approve that API. Slice 5 remains
+available for another capability supported by operational evidence.
 
 ### Slice 6 — Additional inference controls
 
