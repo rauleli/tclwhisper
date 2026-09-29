@@ -337,7 +337,7 @@ CPU observations or claim that the remaining intended-operator corpus exists.
 
 ### Host, artifacts and method
 
-Linode host `172-235-199-210`, Fedora kernel `7.2.7-200.fc44.x86_64`, x86_64;
+Linode RTX 4000 Ada host, Fedora kernel `7.2.7-200.fc44.x86_64`, x86_64;
 AMD EPYC 9474F guest with **4 online logical CPUs**, allowed CPUs `0-3`;
 16,360,788 kB RAM. NVIDIA RTX 4000 Ada Generation, driver 615.71.09,
 CUDA toolkit 13.4.92; runtime logs confirm `using CUDA0 backend` for every
