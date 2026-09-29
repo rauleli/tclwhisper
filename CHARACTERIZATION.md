@@ -1,7 +1,8 @@
 # Characterization record
 
 This document preserves observations made while implementing and validating
-Slices 2 and 3. It is not an API specification, and it does not make future
+Slices 2–4 and subsequent focused experiments. It is not an API specification,
+and it does not make future
 design decisions. Approved decisions belong in `DECISIONS.md`; possible future
 directions belong in `ROADMAP.md`; procedures for collecting new evidence
 belong in `BENCHMARKING.md`.
@@ -308,8 +309,10 @@ the extremely short-PCM test.
 The following evidence was not present in the Slice 2/3 corpus. Later closure
 is marked explicitly; unmarked items remain pending:
 
-- a corpus recorded with the intended maintainer/operator's own voice;
-- aviation phraseology;
+- a corpus recorded with the intended maintainer/operator's own voice — five
+  short recordings are now characterized below; broader coverage remains open;
+- aviation phraseology — the five recordings below provide initial coverage;
+  broader representative coverage remains open;
 - commands that mix Spanish and English;
 - English aviation terminology embedded in Spanish phrases;
 - real audio captured through Iik's intended acquisition chain;
@@ -349,7 +352,7 @@ intentional `get-source-whisper.sh` parallelism change, preserved byte for byte.
 whisper.cpp v1.9.4 commit `927cfce34f31707e17f2bff35c349632fb9e2c3a`, using
 its existing CUDA installation, without rebuilding upstream.
 
-Inputs reside under `/home/rauleli/AeroAlebrije/`; SHA-256:
+Inputs were local to the experiment; SHA-256:
 
 - `ggml-medium.bin`: `6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208`
 - `audio1.f32`: `3e98db61ebe069fcfcdf4c70abaeea447afbb03dad96b817cd6bffc5a57d9a21`
@@ -368,8 +371,8 @@ before reading the selected thread count or calling `whisper::transcribe`.
 are observations of separate processes, not evidence that thread count caused
 a change in initialization speed.
 
-Raw evidence and executable probes are retained outside the repository at
-`/home/rauleli/AeroAlebrije/whisper-benchmark-results/linode-rtx4000ada/slice4/`:
+Raw evidence and executable probes are retained outside the repository in the
+Slice 4 results directory:
 `threads-{1,2,4,6,8}.log`, `regression-{1,2,3}.log`, `parser-cuda.log`,
 `state.log`, `system-info.txt`, `checksums.txt`, `benchmark.tcl`, `state.tcl`,
 `observe.c`, and `slice4.patch`. The benchmark is a local copy of the existing
@@ -468,8 +471,8 @@ All three exact texts match the previous RTX medium logs.
 
 ### Prior RTX evidence retained, not rerun
 
-The parent raw-results directory and
-`/home/rauleli/AeroAlebrije/linode-rtx4000ada-tclwhisper-results.tar.gz`
+The parent raw-results directory and the local archive
+`linode-rtx4000ada-tclwhisper-results.tar.gz`
 retain the pre-Slice-4 CUDA matrices for small, medium, large-v3-q5_0,
 large-v3-turbo and large-v3 on audio1/es, audio2/es, audio3/en, plus medium and
 large-v3-turbo with auto. Model/input checksums are in the parent `checksums.txt`.
@@ -500,3 +503,28 @@ load. Counterbalance value order and use
 more repetitions to distinguish small differences. Longer representative
 inputs and the intended Iik' voice/acquisition corpus remain useful later
 measurements; none constitutes approval of another API slice.
+
+## Initial-prompt experiment — operator voice (2026-09-29 UTC)
+
+The reproducible harness, exact conditions, input checksums, per-call results
+and limitations are preserved in [`experiments/initial_prompt/`](experiments/initial_prompt/README.md).
+This experiment used five short aviation recordings of the intended operator,
+`ggml-small.bin`, CPU-only whisper.cpp v1.9.4, `-language spanish`,
+`n_threads=4`, and the same contextual prompt for every recording. Each
+no-prompt control reproduced its previously supplied baseline exactly.
+
+With the prompt, `test5` changed `BFR` to the spoken `VFR` and `Herring` to
+the spoken `heading`. Controls `test2`–`test4` had no relevant degradation;
+`test4` preserved the spoken NATO-alphabet waypoint rather than converting it
+to an identifier. The opening of `test1` changed, but its exact spoken opening
+was not preserved, so that change cannot yet be scored as improvement or
+degradation. Under these specific conditions, a common contextual prompt
+produced concrete domain-term improvements without relevant control-sample
+degradation. One run per condition with one model cannot establish that
+`initial_prompt` generally improves transcription.
+
+Nonblocking follow-up characterization for Slice 5 includes audio longer than
+30 s with a domain term in a later internal window, interaction with
+`-language auto`, and generic versus mission-specific prompts. Constructing
+mission-specific prompts belongs to the Iik' Tcl orchestrator, not this
+binding. These are open measurements, not reported results.

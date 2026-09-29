@@ -62,21 +62,21 @@ introspective slice that does not depend on recognition behavior.
 
 ## Possible future slices
 
-`whisper::info` remains an unselected candidate, outside completed Slice 4.
+`whisper::info` remains deferred: no operational consumer has been identified.
 
-### Slice 5 — To be selected
+### Slice 5 — Per-call initial_prompt (selected, not implemented)
 
-No capability has been selected for Slice 5. D-008 defers possible `s16le`
-support until Iik's actual audio acquisition and normalization pipeline is
-characterized. The resulting evidence may justify reconsidering conversion
-inside `tclwhisper`, but D-008 does not approve that API. Slice 5 remains
-available for another capability supported by operational evidence.
+D-009 selects `-initial_prompt text` for `whisper::transcribe` on a per-call
+basis, supported by the operator-voice characterization in
+`experiments/initial_prompt/` and summarized in `CHARACTERIZATION.md`.
+Selection does not mean implementation or completion. D-008 continues to
+defer possible `s16le` support until Iik's real audio acquisition and
+normalization pipeline is characterized; it is not part of Slice 5.
 
 ### Slice 6 — Additional inference controls
 
 Possible candidates include:
 
-- `-initial_prompt`;
 - `-translate`.
 
 Only controls with demonstrated consumers or operational value should become

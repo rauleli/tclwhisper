@@ -476,3 +476,74 @@ forma parte del contrato público actual.
   representación y escala.
 - Slice 5 queda libre para seleccionar otra capacidad con evidencia
   operacional más fuerte.
+
+## D-009 — Exponer `initial_prompt` como opción per-call de `whisper::transcribe`
+
+**Status:** approved
+
+### Question
+
+¿Debe Slice 5 exponer el `whisper_full_params.initial_prompt` de upstream como
+opción por llamada, sin trasladar la construcción ni administración de prompts
+al binding?
+
+### Evidence
+
+La characterization de `experiments/initial_prompt/` comparó cinco grabaciones
+de la voz real del operador con y sin un mismo prompt contextual, usando
+`ggml-small.bin`, idioma `spanish` y `n_threads=4`. Los cinco controles sin
+prompt reprodujeron sus baselines. En `test5`, el prompt corrigió `BFR` a
+`VFR` y `Herring` a `heading`; las frases de control `test2`–`test4` no
+mostraron degradaciones relevantes. El cambio al inicio de `test1` no puede
+clasificarse sin la referencia exacta de lo pronunciado. Una corrida por
+condición y un solo modelo no establecen una mejora general.
+
+En whisper.cpp v1.9.4, `initial_prompt` es un `const char *` en los parámetros
+de la llamada; su default es `nullptr`. `no_context=true` y
+`carry_initial_prompt=false` son los defaults conservados por el binding.
+Con `carry_initial_prompt=false`, upstream incorpora los tokens del prompt al
+contexto dinámico; no conserva una copia estática separada para reinyectarla
+explícitamente en cada ventana. El historial dinámico puede evolucionar
+durante la llamada. Esta evidencia no establece una semántica particular para
+una sola ventana interna.
+
+### Decision
+
+Slice 5 expondrá `initial_prompt` como opción per-call de
+`whisper::transcribe`. La firma prevista es:
+
+```tcl
+whisper::transcribe $handle $pcm \
+    ?-language language|auto? \
+    ?-n_threads integer? \
+    ?-initial_prompt text?
+```
+
+La omisión y `-initial_prompt ""` serán equivalentes: en ambos casos se
+asignará `params.initial_prompt = nullptr`. Para texto no vacío, el puntero
+será válido durante toda la llamada síncrona a `whisper_full()`. No habrá
+persistencia del prompt en `WhisperHandle`. `no_context=true` y
+`carry_initial_prompt=false` permanecerán sin cambios.
+
+La construcción del prompt corresponde al orquestador Tcl de Iik’, no a
+`tclwhisper`.
+
+### Exclusions
+
+Esta decisión no aprueba exponer ni implementar:
+
+- `carry_initial_prompt`, `prompt_tokens`, `prompt_n_tokens` ni `no_context`
+  como opciones;
+- persistencia en el handle o estado global;
+- prompt automático ni concatenación automática de prompts;
+- conocimiento aeronáutico en C, normalización semántica ni conversión
+  NATO → identificador;
+- administración de prompts por misión dentro de `tclwhisper`.
+
+### Further characterization
+
+Sin bloquear Slice 5, queda por caracterizar audio de más de 30 s con un
+término de dominio en una ventana posterior, la interacción de
+`-initial_prompt` con `-language auto`, y prompts genéricos frente a prompts
+específicos por misión. La construcción de estos últimos pertenece al
+orquestador Tcl de Iik’.
