@@ -3,6 +3,23 @@
 This file records changes made to `tclwhisper` in chronological order.
 Dates and times use the local time zone stated in each entry.
 
+## 2026-09-29 UTC — Slice 4
+
+- Added per-call `whisper::transcribe ... -n_threads integer`, compatible with
+  `-language` in either order. No handle state; omission preserves upstream's
+  freshly generated default; only `params.n_threads` is overridden.
+- Reject duplicate/missing/unknown options, nonpositive/noninteger values and
+  values outside upstream `int`, before PCM access including empty PCM.
+  Guard unsigned-pattern conversion of huge negative integers observed in
+  this host's Tcl 8.6.14.
+- Strict `-O2 -Wall -Wextra -Werror` CUDA binding build and `make test` passed;
+  50 persistent parser checks and real-call nonpersistence probes passed.
+- Characterized medium/audio1/es on RTX 4000 Ada: five retained runs each for
+  1/2/4/6/8 threads; default-thread audio1/es, audio2/es, audio3/en regressions
+  matched prior text. Full observations are in `CHARACTERIZATION.md`.
+- Scope: thread count only. Package remains 0.1; lifecycle, PCM, language,
+  text output, GPU, flash attention and greedy defaults remain unchanged.
+
 ## 2026-09-28 00:55:08 MDT (-0600) — Repository portability / publishing preparation
 
 ### Added

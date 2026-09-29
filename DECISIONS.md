@@ -302,3 +302,23 @@ esta API.
   transcripción.
 - Upstream compara exactamente: el binding no normaliza mayúsculas, espacios,
   nombres ni aliases.
+
+
+## D-007 — Threads por transcripción (Slice 4)
+
+**Status:** approved
+
+`whisper::transcribe handle pcm ?-language language|auto? ?-n_threads integer?`
+acepta ambas opciones en cualquier orden y como máximo una vez cada una.
+`-n_threads` es por llamada: no se almacena en el handle ni persiste en llamadas
+posteriores. Al omitirse conserva exactamente el valor de
+`whisper_full_default_params(WHISPER_SAMPLING_GREEDY)`, sin copiar su default
+al binding. Al especificarse modifica únicamente `params.n_threads`.
+
+Se exige un entero positivo representable por el `int` de upstream; no se
+impone un máximo arbitrario propio. La validación precede a la conversión,
+copia y shortcut de PCM vacío y a la inferencia. La aceptación del rango no
+promete recursos suficientes para ejecutar valores extremos.
+
+No cambia ningún otro control de reconocimiento ni el lifecycle. La evidencia
+RTX y las limitaciones de la matriz constan en `CHARACTERIZATION.md`.

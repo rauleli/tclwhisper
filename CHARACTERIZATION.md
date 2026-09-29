@@ -287,8 +287,9 @@ but the retained script shows that its PCM contained 20 samples (80 bytes),
 not zero bytes. Therefore the requested historical claim of a specifically
 empty-PCM parser test cannot be verified. The retained evidence also does not
 show a complete real-audio inference using the full name. Both the empty-PCM
-focal check and real-audio inference remain pending; neither should be inferred
-from the extremely short-PCM test.
+focal check and real-audio inference were pending in that historical corpus;
+both are now closed by the Slice 4 RTX evidence below. Neither follows from
+the extremely short-PCM test.
 
 ## What these observations do not establish
 
@@ -304,21 +305,198 @@ from the extremely short-PCM test.
 
 ## Evidence still needed
 
-The following evidence was not present in the Slice 2/3 corpus and must not be
-described as already available:
+The following evidence was not present in the Slice 2/3 corpus. Later closure
+is marked explicitly; unmarked items remain pending:
 
 - a corpus recorded with the intended maintainer/operator's own voice;
 - aviation phraseology;
 - commands that mix Spanish and English;
 - English aviation terminology embedded in Spanish phrases;
 - real audio captured through Iik's intended acquisition chain;
-- a focused empty-PCM acceptance check with `-language spanish`;
-- a complete real-audio inference with `-language spanish`;
-- characterization on an NVIDIA RTX system;
+- a focused empty-PCM acceptance check with `-language spanish` — closed below;
+- a complete real-audio inference with `-language spanish` — closed below;
+- characterization on an NVIDIA RTX system — recorded below;
 - later characterization on Jetson Orin NX;
-- comparison of the Whisper models of practical interest to Iik'.
+- comparison of the Whisper models of practical interest to Iik' — prior RTX
+  model coverage is recorded below; target-workload comparison remains open.
 
 New records should follow `BENCHMARKING.md` and retain the raw result location
 or reference, exact date, host, CPU/architecture, model identity and checksum,
 whisper.cpp and tclwhisper commits, backend, language, input identity and
 duration, power/scheduling configuration when relevant, and run-level timing.
+
+
+## Slice 4 — RTX per-call n_threads (2026-09-29 UTC)
+
+This section complements the historical Slice 2/3 records above. It closes
+those records' RTX and real-audio `spanish` evidence gaps; it does not replace
+CPU observations or claim that the remaining intended-operator corpus exists.
+
+### Host, artifacts and method
+
+Linode host `172-235-199-210`, Fedora kernel `7.2.7-200.fc44.x86_64`, x86_64;
+AMD EPYC 9474F guest with **4 online logical CPUs**, allowed CPUs `0-3`;
+16,360,788 kB RAM. NVIDIA RTX 4000 Ada Generation, driver 615.71.09,
+CUDA toolkit 13.4.92; runtime logs confirm `using CUDA0 backend` for every
+matrix and regression process. Tcl 8.6.14 from `/opt/ActiveTcl-8.6`,
+tclwhisper package 0.1, GCC 16.2.1. GPU snapshot after the matrix: P0,
+49 W / 130 W, no running GPU processes. CPU contention and power/frequency
+were not continuously sampled; no affinity or power settings were changed.
+
+Source baseline/HEAD: `fd2e6a2287fb4ee4429175024672a05453802fbe` plus the
+uncommitted Slice 4 diff (no release commit). Initial tree had only the
+intentional `get-source-whisper.sh` parallelism change, preserved byte for byte.
+whisper.cpp v1.9.4 commit `927cfce34f31707e17f2bff35c349632fb9e2c3a`, using
+its existing CUDA installation, without rebuilding upstream.
+
+Inputs reside under `/home/rauleli/AeroAlebrije/`; SHA-256:
+
+- `ggml-medium.bin`: `6c14d5adee5f86394037b4e4e8b59f1673b6cee10e3cf0b11bbdbee79c156208`
+- `audio1.f32`: `3e98db61ebe069fcfcdf4c70abaeea447afbb03dad96b817cd6bffc5a57d9a21`
+- `audio2.f32`: `4c7afcaf42b11b75f5c716808aee1b89253bbc3171bd33c11fb004af19fd691c`
+- `audio3.f32`: `ab75920f0d48673cba7e3e8ef63a5b834ade2fbb82a2d6316a657f8d2247dd26`
+
+Matrix: `ggml-medium.bin`, `audio1.f32`, `-language es`, thread values
+1, 2, 4, 6, 8 in that order. One fresh process/handle per value, five sequential
+calls on that handle, no warmup discarded. Model initialization is separate;
+PCM file read precedes timing; transcribe timing includes binding PCM copying.
+All other parameters remain identical. Audio1 duration: 3.2914375 seconds.
+`init_seconds` brackets only `whisper::init $model`, after reading PCM and
+before reading the selected thread count or calling `whisper::transcribe`.
+`whisper::init` uses `whisper_context_params`, not `whisper_full_params`;
+`-n_threads` is applied only during transcription. The initialization times
+are observations of separate processes, not evidence that thread count caused
+a change in initialization speed.
+
+Raw evidence and executable probes are retained outside the repository at
+`/home/rauleli/AeroAlebrije/whisper-benchmark-results/linode-rtx4000ada/slice4/`:
+`threads-{1,2,4,6,8}.log`, `regression-{1,2,3}.log`, `parser-cuda.log`,
+`state.log`, `system-info.txt`, `checksums.txt`, `benchmark.tcl`, `state.tcl`,
+`observe.c`, and `slice4.patch`. The benchmark is a local copy of the existing
+benchmark script with the selected thread argument; repository tooling and
+`BENCHMARKING.md` were not changed. The old protocol's “not currently exposed”
+wording describes its pre-Slice-4 context; no measurement-protocol correction
+was needed.
+
+### Native API facts and inference
+
+Direct source inspection, before editing, established:
+
+- `include/whisper.h:490`: `whisper_full_params.n_threads` is `int`.
+- `src/whisper.cpp:6038`: default is
+  `std::min(4, (int32_t) std::thread::hardware_concurrency())`.
+- `whisper_full` takes params by value and forwards them to
+  `whisper_full_with_state`. Its mel calculation (6931), language detection
+  (6948), encoder (7160), decoder (7286/7598), and decoder worker loops
+  (7377/7627) use this call's `params.n_threads`. Graph helpers set backend
+  thread counts (197–206); this is not a CUDA GPU-thread-count promise.
+- No zero/negative auto sentinel or normalization exists along this path.
+  Mel creates `std::vector<std::thread>(n_threads - 1)` (3265), with worker
+  strides based on `n_threads` (3166/3211).
+
+Inference from those facts: changing the local field suffices for per-call
+control; nonpositive counts must not be treated as a safe upstream default
+request. No CLI behavior was copied. Omission leaves the native default intact.
+
+### Functional and lifecycle evidence
+
+Strict build `make CFLAGS='-O2 -Wall -Wextra -Werror'` and corresponding
+`make test` passed in the existing CUDA build directory. `make test` is only
+the repository version/load smoke test. Separately, `tests/options.tcl MODEL`
+passed 50 assertions: no options, each option alone, both orders, 1/2/4/8,
+INT_MAX on empty PCM, unknown/missing/duplicate options, invalid language,
+zero, negative, fractional, noninteger, empty and out-of-range counts.
+Invalid counts also precede malformed PCM errors. On this host's Tcl 8.6.14,
+`Tcl_GetWideIntFromObj(interp, obj, &value)` with a string object containing
+`-18446744073709551615` returned `TCL_OK` and `value=1`. This is an observed
+conversion, not a claim about every Tcl 8.6 version. The parser rejects a
+minus sign before conversion, then checks a wide integer against `1..INT_MAX`
+before casting to `int`. `tests/options.tcl` covers that exact negative value
+with both empty and malformed PCM.
+
+An external LD_PRELOAD observer forwarded real calls to libwhisper and logged
+`n_threads` plus the live upstream default. Sequences on one real handle were
+`1, omitted => 1,4` and `8,2,omitted => 8,2,4`; both option orders and
+language-only also passed real inference. No observer was loaded for timings.
+Initial sandbox probes could not see CUDA; final functional probes and all
+reported timings ran with CUDA access. The observer initially needed explicit
+library linkage/search paths; the retained final `state.log` is successful.
+
+Review found only stack-local thread state, no change to `WhisperHandle`, no
+new persistent allocation or retained Tcl reference, and all new errors before
+PCM allocation. Existing PCM and language cleanup on success/inference failure
+is unchanged. No full CUDA Memcheck session was run.
+
+### RTX results
+
+Seconds; RTF is transcription seconds divided by 3.2914375. Every first run
+is retained in min/max/mean/median calculations.
+
+| Threads | Init | Runs 1–5 (seconds) | Min | Max | Mean | Median | Median RTF |
+|---:|---:|---|---:|---:|---:|---:|---:|
+| 1 | 0.470039 | 0.199654, 0.113335, 0.111066, 0.112741, 0.111462 | 0.111066 | 0.199654 | 0.129652 | 0.112741 | 0.034253 |
+| 2 | 0.398883 | 0.192168, 0.111732, 0.108590, 0.107797, 0.108046 | 0.107797 | 0.192168 | 0.125667 | 0.108590 | 0.032992 |
+| 4 | 0.395404 | 0.192431, 0.109339, 0.107708, 0.108879, 0.107449 | 0.107449 | 0.192431 | 0.125161 | 0.108879 | 0.033079 |
+| 6 | 0.392729 | 0.192627, 0.107393, 0.107835, 0.108347, 0.108006 | 0.107393 | 0.192627 | 0.124842 | 0.108006 | 0.032814 |
+| 8 | 0.396190 | 0.189555, 0.108508, 0.108026, 0.107323, 0.107682 | 0.107323 | 0.189555 | 0.124219 | 0.108026 | 0.032820 |
+
+Per-run RTF values and exact text are also retained in each raw log. All 25
+results were identical (including the leading space):
+
+```text
+ El niño toca la guitarra en la mañana.
+```
+
+One thread had the highest median. Medians for 2/4/6/8 are close; five ordered
+runs on this short input do not establish an optimal count. Every first call
+was substantially slower than subsequent calls. There is no evidence here
+that more threads monotonically improve latency, especially with only four
+guest CPUs exposed. This CUDA matrix does not establish behavior on hardware
+with more useful CPU cores than requested threads, nor that 6 or 8 threads
+are better than 2 or 4.
+
+### Default-thread regression after the matrix
+
+One fresh-process call per input, `medium`, explicit language, no `-n_threads`.
+All three exact texts match the previous RTX medium logs.
+
+| Input / language | Init (s) | Transcribe (s) | RTF | Exact text |
+|---|---:|---:|---:|---|
+| audio1 / es | 0.397862 | 0.190764 | 0.057958 | ` El niño toca la guitarra en la mañana.` |
+| audio2 / es | 0.395275 | 0.227037 | 0.041191 | ` No quiero probar nada más, solo quiero una enorme taza de café.` |
+| audio3 / en | 0.395108 | 0.239494 | 0.033583 | ` I don't want to try anything else. I just want a huge cup of coffee.` |
+
+### Prior RTX evidence retained, not rerun
+
+The parent raw-results directory and
+`/home/rauleli/AeroAlebrije/linode-rtx4000ada-tclwhisper-results.tar.gz`
+retain the pre-Slice-4 CUDA matrices for small, medium, large-v3-q5_0,
+large-v3-turbo and large-v3 on audio1/es, audio2/es, audio3/en, plus medium and
+large-v3-turbo with auto. Model/input checksums are in the parent `checksums.txt`.
+Those tests establish existing CUDA coverage; they were not repeated here.
+
+`medium-audio1-spanish.txt` records five real-audio calls, identical text
+` El niño toca la guitarra en la mañana.`, median **0.109715 s**. This closes
+the historical real-audio full-name gap without rerunning that benchmark.
+The new parser tests also close the empty-PCM `spanish` check.
+
+Prior median auto versus explicit seconds for audio1/2/3 were:
+
+- medium: 0.149188/0.182826/0.195324 versus 0.107787/0.142299/0.154676;
+- large-v3-turbo: 0.154461/0.171820/0.175843 versus
+  0.088674/0.105976/0.110043.
+
+Auto added about 40–41 ms for medium and 66 ms for turbo in those measurements.
+This is a host/model/corpus observation, not a portable overhead rule, and
+must not be conflated with the historical CPU 90–92% observation.
+
+### Remaining uncertainty and Jetson follow-up
+
+No optimal portable count is established. Reproduce the same 1/2/4/6/8 matrix
+on Jetson with these checksummed inputs and explicit es, retaining all runs,
+init and text. Record online CPUs, cpuset/affinity, `nvpmodel`, clocks/frequencies,
+temperature, power, backend (CUDA or CPU-only), GPU configuration and competing
+load. Counterbalance value order and use
+more repetitions to distinguish small differences. Longer representative
+inputs and the intended Iik' voice/acquisition corpus remain useful later
+measurements; none constitutes approval of another API slice.

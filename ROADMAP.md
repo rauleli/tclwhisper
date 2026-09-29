@@ -35,25 +35,22 @@ The binding follows the principle:
   - `-language <language|auto>`
   - no language state stored in the handle
 
+- Slice 4 — Per-call thread count (completed)
+  - `-n_threads <integer>`; positive upstream `int`
+  - no handle state; omission preserves upstream default
+  - RTX matrix completed; see `CHARACTERIZATION.md`
+
 - Infrastructure phase — Repository portability / publishing preparation
   - portable build documentation
   - clean-source build/install validation
   - reproducible benchmark tooling
   - public repository preparation
 
-## Before selecting Slice 4
+## Evidence for future selection
 
-The next functional slice is intentionally not frozen yet.
-
-Before selecting it, the project should use the portable repository and
-benchmark tooling to collect evidence on external hardware where practical,
-including:
-
-- an NVIDIA RTX system;
-- later, the Jetson Orin NX target.
-
-Measurements should help determine whether controls such as thread count or
-other inference parameters are actually useful to the intended deployment.
+Slice 4 was selected and completed exclusively as per-call `-n_threads`.
+RTX measurements are recorded in `CHARACTERIZATION.md`; Jetson Orin NX
+characterization remains future measurement work.
 
 Evidence from intended Iik' workloads — including aviation phraseology,
 mixed Spanish/English commands, and the intended operator's own voice — should
@@ -65,14 +62,7 @@ introspective slice that does not depend on recognition behavior.
 
 ## Possible future slices
 
-### Slice 4 — Introspection or minimal inference control
-
-Possible directions include:
-
-- `whisper::info`;
-- per-call `-n_threads`.
-
-The exact scope is not yet decided.
+`whisper::info` remains an unselected candidate, outside completed Slice 4.
 
 ### Slice 5 — Additional PCM representation
 
@@ -88,7 +78,6 @@ No resampling, channel mixing, file decoding, or audio acquisition is implied.
 
 Possible candidates include:
 
-- `-n_threads`;
 - `-initial_prompt`;
 - `-translate`.
 

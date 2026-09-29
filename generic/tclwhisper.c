@@ -281,12 +281,14 @@ WhisperTranscribeCmd(
     Tcl_Obj *languageValueObj = NULL;
     Tcl_Obj *languageObj = NULL;
     int languageSeen = 0;
+    int threadsSeen = 0;
+    int nThreads = 0;
 
     (void) clientData;
 
     if (objc < 3) {
         Tcl_WrongNumArgs(
-            interp, 1, objv, "handle pcm ?-language language|auto?");
+            interp, 1, objv, "handle pcm ?-language language|auto? ?-n_threads integer?");
         return TCL_ERROR;
     }
 
@@ -300,14 +302,38 @@ WhisperTranscribeCmd(
 
         if (i + 1 >= objc) {
             Tcl_WrongNumArgs(
-                interp, 1, objv, "handle pcm ?-language language|auto?");
+                interp, 1, objv, "handle pcm ?-language language|auto? ?-n_threads integer?");
             return TCL_ERROR;
         }
 
         option = Tcl_GetString(objv[i]);
+        if (strcmp(option, "-n_threads") == 0) {
+            Tcl_WideInt value;
+
+            if (threadsSeen) {
+                Tcl_SetObjResult(interp, Tcl_NewStringObj(
+                    "option \"-n_threads\" may be specified only once", -1));
+                Tcl_SetErrorCode(
+                    interp, "TCLWHISPER", "OPTION", "DUPLICATE", NULL);
+                return TCL_ERROR;
+            }
+            threadsSeen = 1;
+            /* Observed on Tcl 8.6.14: huge negative values can wrap positive. */
+            if (strchr(Tcl_GetString(objv[i + 1]), '-') != NULL ||
+                    Tcl_GetWideIntFromObj(interp, objv[i + 1], &value) != TCL_OK ||
+                    value <= 0 || value > INT_MAX) {
+                Tcl_SetObjResult(interp, Tcl_NewStringObj(
+                    "-n_threads must be a positive integer representable as int", -1));
+                Tcl_SetErrorCode(
+                    interp, "TCLWHISPER", "N_THREADS", "INVALID", NULL);
+                return TCL_ERROR;
+            }
+            nThreads = (int) value;
+            continue;
+        }
         if (strcmp(option, "-language") != 0) {
             Tcl_SetObjResult(interp, Tcl_ObjPrintf(
-                "unknown option \"%s\": must be -language", option));
+                "unknown option \"%s\": must be -language or -n_threads", option));
             Tcl_SetErrorCode(
                 interp, "TCLWHISPER", "OPTION", "UNKNOWN", NULL);
             return TCL_ERROR;
@@ -368,6 +394,9 @@ WhisperTranscribeCmd(
     }
 
     params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
+    if (threadsSeen) {
+        params.n_threads = nThreads;
+    }
     params.print_progress = false;
     params.print_realtime = false;
     params.print_timestamps = false;

@@ -94,9 +94,9 @@ backend configuration, and competing process load.
 This is a measurement, not an advance recommendation. Four threads may remain
 optimal, and more threads do not guarantee lower latency. Memory behavior,
 GPU/CPU work division, power mode, scheduling, cpusets, and other processes can
-change the result. tclwhisper does not currently expose `n_threads`; preserve
-this protocol for a future approved or experimental way to vary the parameter
-without treating the matrix as a request to change the current API.
+change the result. tclwhisper exposes per-call `-n_threads` on
+`whisper::transcribe`; omission preserves the upstream default. Use this
+protocol to measure its behavior on each hardware/backend combination.
 
 ## Directed duration-scaling characterization
 

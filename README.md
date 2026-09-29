@@ -12,7 +12,7 @@ stable release.
 whisper::version
 whisper::init model
 whisper::free handle
-whisper::transcribe handle pcm ?-language language|auto?
+whisper::transcribe handle pcm ?-language language|auto? ?-n_threads integer?
 ```
 
 Each successful `whisper::init` creates an independent context and returns a
@@ -27,6 +27,10 @@ whisper::transcribe $handle $pcm -language en
 whisper::transcribe $handle $pcm -language es
 whisper::transcribe $handle $pcm -language auto
 ```
+
+`-n_threads` accepts a positive integer representable as upstream `int`, applies
+only to this call, and changes only `params.n_threads`. Omission preserves the
+upstream default. Options may appear in either order, at most once each.
 
 Without `-language`, the characterized whisper.cpp v1.9.4 default is English.
 `auto` performs upstream language detection before transcription and has a
